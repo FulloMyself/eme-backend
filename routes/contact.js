@@ -6,13 +6,13 @@ router.post('/contact', async (req, res) => {
     const { name, email, phone, service, message } = req.body;
 
     if (!name || !email || !service || !message) {
-        return res.status(400).json({ message: 'Please fill in all required fields.' });
+        return res.status(400).json({ success: false, message: 'Please fill in all required fields.' });
     }
 
     try {
-        // Afrihost SMTP transporter
+        // Afrihost SMTP transporter (SSL)
         const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'mail.eme4you.co.za',
+            host: process.env.SMTP_HOST || 'mail.eme4you.co.za', // Afrihost mail server
             port: 465, // SSL
             secure: true,
             auth: {
@@ -20,16 +20,19 @@ router.post('/contact', async (req, res) => {
                 pass: process.env.EMAIL_PASS
             },
             tls: {
+                // Allows self-signed certificates
                 rejectUnauthorized: false
             },
-            connectionTimeout: 10000
+            logger: true, // logs SMTP connection info
+            debug: true,  // shows debug info in console
+            connectionTimeout: 20000, // 20s timeout
         });
 
-        // 1️⃣ Email to EME team
+        // 1️⃣ Send email to EME team
         await transporter.sendMail({
             from: `"Website Contact" <${process.env.EMAIL_USER}>`,
-            to: process.env.EMAIL_USER, // send to info@eme4you.co.za
-            replyTo: email, // user's email
+            to: process.env.EMAIL_USER, // info@eme4you.co.za
+            replyTo: email, // visitor's email
             subject: `New Contact Form Message: ${name}`,
             html: `<p><strong>Name:</strong> ${name}</p>
                    <p><strong>Email:</strong> ${email}</p>
@@ -38,7 +41,7 @@ router.post('/contact', async (req, res) => {
                    <p><strong>Message:</strong> ${message}</p>`
         });
 
-        // 2️⃣ Email confirmation to user
+        // 2️⃣ Send confirmation to visitor
         await transporter.sendMail({
             from: `"EME Support" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -52,7 +55,10 @@ router.post('/contact', async (req, res) => {
 
     } catch (error) {
         console.error('Error sending emails:', error);
-        res.status(500).json({ success: false, message: 'Error sending message. Please try again later.' });
+        res.status(500).json({
+            success: false,
+            message: 'Email server not configured properly. Please check SMTP_HOST, EMAIL_USER, and EMAIL_PASS.'
+        });
     }
 });
 
