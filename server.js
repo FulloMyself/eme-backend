@@ -12,6 +12,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ---------------------------
+// Trust Proxy (for Render / rate-limit)
+// ---------------------------
+app.set("trust proxy", 1); // Trust first proxy
+
+// ---------------------------
 // Middleware
 // ---------------------------
 app.use(helmet());
@@ -103,7 +108,10 @@ app.post("/api/contact", async (req, res) => {
     };
 
     // Send both emails concurrently
-    await Promise.all([transporter.sendMail(companyMailOptions), transporter.sendMail(userMailOptions)]);
+    await Promise.all([
+      transporter.sendMail(companyMailOptions),
+      transporter.sendMail(userMailOptions),
+    ]);
 
     return res.json({ success: true, message: "Your message has been sent successfully!" });
   } catch (error) {
