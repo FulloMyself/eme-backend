@@ -10,19 +10,26 @@ router.post('/contact', async (req, res) => {
     }
 
     try {
-        // Configure transporter (example using Gmail SMTP)
+        // Afrihost SMTP transporter
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: process.env.SMTP_HOST || 'mail.eme4you.co.za',
+            port: 465, // SSL
+            secure: true,
             auth: {
-                user: process.env.EMAIL_USER,
+                user: process.env.EMAIL_USER, // info@eme4you.co.za
                 pass: process.env.EMAIL_PASS
-            }
+            },
+            tls: {
+                rejectUnauthorized: false
+            },
+            connectionTimeout: 10000
         });
 
-        // Email to company
+        // 1️⃣ Email to EME team
         await transporter.sendMail({
             from: `"Website Contact" <${process.env.EMAIL_USER}>`,
-            to: 'info@eme4you.co.za',
+            to: process.env.EMAIL_USER, // send to info@eme4you.co.za
+            replyTo: email, // user's email
             subject: `New Contact Form Message: ${name}`,
             html: `<p><strong>Name:</strong> ${name}</p>
                    <p><strong>Email:</strong> ${email}</p>
@@ -31,7 +38,7 @@ router.post('/contact', async (req, res) => {
                    <p><strong>Message:</strong> ${message}</p>`
         });
 
-        // Email to user (confirmation)
+        // 2️⃣ Email confirmation to user
         await transporter.sendMail({
             from: `"EME Support" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -41,11 +48,11 @@ router.post('/contact', async (req, res) => {
                    <p>Best regards,<br/>EME Team</p>`
         });
 
-        res.status(200).json({ message: 'Message sent successfully!' });
+        res.status(200).json({ success: true, message: 'Message sent successfully!' });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error sending message.' });
+        console.error('Error sending emails:', error);
+        res.status(500).json({ success: false, message: 'Error sending message. Please try again later.' });
     }
 });
 
