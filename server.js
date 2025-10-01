@@ -11,27 +11,40 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security & Rate Limiting
+// ---------------------------
+// Middleware
+// ---------------------------
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const allowedOrigins = [process.env.FRONTEND_URL || "http://localhost:5500"];
+// ---------------------------
+// CORS Configuration
+// ---------------------------
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://127.0.0.1:5500",
+  "http://localhost:5500",
+];
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "OPTIONS"],
   })
 );
 
+// ---------------------------
+// Rate Limiter
+// ---------------------------
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: 5, // max 5 requests per IP per window
   message: { success: false, message: "Too many requests. Please try again later." },
 });
 app.use("/api/contact", limiter);
 
+// ---------------------------
 // Contact API
+// ---------------------------
 app.post("/api/contact", async (req, res) => {
   const { name, email, phone, service, message } = req.body;
 
@@ -48,11 +61,10 @@ app.post("/api/contact", async (req, res) => {
   }
 
   try {
-    // Create Nodemailer transporter
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
+      secure: process.env.SMTP_SECURE === "true",
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -91,10 +103,7 @@ app.post("/api/contact", async (req, res) => {
     };
 
     // Send both emails concurrently
-    await Promise.all([
-      transporter.sendMail(companyMailOptions),
-      transporter.sendMail(userMailOptions),
-    ]);
+    await Promise.all([transporter.sendMail(companyMailOptions), transporter.sendMail(userMailOptions)]);
 
     return res.json({ success: true, message: "Your message has been sent successfully!" });
   } catch (error) {
@@ -105,12 +114,16 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
-// Health check
+// ---------------------------
+// Health Check
+// ---------------------------
 app.get("/", (req, res) => {
   res.send("EME Backend is running!");
 });
 
-// Start server
+// ---------------------------
+// Start Server
+// ---------------------------
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
