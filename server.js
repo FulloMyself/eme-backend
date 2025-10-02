@@ -11,21 +11,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ---------------------------
-// Trust Proxy (for Render / rate-limit)
-// ---------------------------
-app.set("trust proxy", 1); // Trust first proxy
-
-// ---------------------------
-// Middleware
-// ---------------------------
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ---------------------------
-// CORS Configuration
-// ---------------------------
+// Allow frontend origins
 const allowedOrigins = [
   process.env.FRONTEND_URL || "http://127.0.0.1:5500",
   "http://localhost:5500",
@@ -37,49 +28,40 @@ app.use(
   })
 );
 
-// ---------------------------
-// Rate Limiter
-// ---------------------------
+// Limit abuse
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 5, // max 5 requests per IP per window
+  windowMs: 60 * 1000,
+  max: 5,
   message: { success: false, message: "Too many requests. Please try again later." },
 });
 app.use("/api/contact", limiter);
 
-// ---------------------------
 // Contact API
-// ---------------------------
 app.post("/api/contact", async (req, res) => {
   const { name, email, phone, service, message } = req.body;
 
   if (!name || !email || !service || !message) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Please fill all required fields." });
-  }
-
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.SMTP_HOST) {
-    return res
-      .status(500)
-      .json({ success: false, message: "Email server not configured properly." });
+    return res.status(400).json({ success: false, message: "Please fill all required fields." });
   }
 
   try {
+    // Auth account = Afrihost mailbox (EME’s SMTP)
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
+      port: Number(process.env.SMTP_PORT) || 465,
       secure: process.env.SMTP_SECURE === "true",
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.COMPANY_EMAIL,   // EME authenticated sender
+        pass: process.env.EMAIL_PASS,      // password from Afrihost
       },
+      tls: { rejectUnauthorized: false },
     });
 
-    // Email to company
-    const companyMailOptions = {
-      from: `"EME Website" <${process.env.SMTP_USER}>`,
-      to: process.env.COMPANY_EMAIL || "info@eme4you.co.za",
+    // 1️⃣ Send email to EME team
+    await transporter.sendMail({
+      from: `"EME Website" <${process.env.COMPANY_EMAIL}>`,
+      to: ["info@eme4you.co.za", "wandile@eme4you.co.za"],
+      replyTo: email, // visitor's email
       subject: `New Contact Form Submission from ${name}`,
       html: `
         <h2>New Contact Form Submission</h2>
@@ -90,28 +72,22 @@ app.post("/api/contact", async (req, res) => {
         <p><strong>Message:</strong></p>
         <p>${message}</p>
       `,
-    };
+    });
 
-    // Email to user
-    const userMailOptions = {
-      from: `"EME Website" <${process.env.SMTP_USER}>`,
+    // 2️⃣ Send confirmation to visitor
+    await transporter.sendMail({
+      from: `"EME Support" <${process.env.COMPANY_EMAIL}>`,
       to: email,
       subject: `Thank you for contacting EME, ${name}`,
       html: `
         <h2>Thank you for reaching out!</h2>
         <p>Dear ${name},</p>
-        <p>We have received your message regarding "<strong>${service}</strong>". Our team will get back to you shortly.</p>
-        <p>Here’s a copy of your message:</p>
+        <p>We have received your message regarding "<strong>${service}</strong>".</p>
+        <p>Our team will get back to you shortly.</p>
         <blockquote>${message}</blockquote>
         <p>— EME Team</p>
       `,
-    };
-
-    // Send both emails concurrently
-    await Promise.all([
-      transporter.sendMail(companyMailOptions),
-      transporter.sendMail(userMailOptions),
-    ]);
+    });
 
     return res.json({ success: true, message: "Your message has been sent successfully!" });
   } catch (error) {
@@ -122,16 +98,9 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
-// ---------------------------
 // Health Check
-// ---------------------------
 app.get("/", (req, res) => {
   res.send("EME Backend is running!");
 });
 
-// ---------------------------
-// Start Server
-// ---------------------------
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
