@@ -15,7 +15,7 @@ router.post("/contact", async (req, res) => {
   }
 
   // Check that SMTP env variables exist
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!process.env.SMTP_HOST || !process.env.COMPANY_EMAIL || !process.env.EMAIL_PASS) {
     return res.status(500).json({
       success: false,
       message: "Email server not configured properly.",
@@ -29,16 +29,16 @@ router.post("/contact", async (req, res) => {
       port: Number(process.env.SMTP_PORT) || 465,
       secure: process.env.SMTP_SECURE === "true", // SSL
       auth: {
-        user: process.env.SMTP_USER,      // info@eme4you.co.za
-        pass: process.env.SMTP_PASS,
+        user: process.env.COMPANY_EMAIL,      // info@eme4you.co.za
+        pass: process.env.EMAIL_PASS,
       },
       tls: { rejectUnauthorized: false }, // allow self-signed
     });
 
     // 1️⃣ Email to EME team
     const teamMailOptions = {
-      from: `"EME Website" <${process.env.SMTP_USER}>`, // must match authenticated user
-      to: process.env.COMPANY_EMAIL || "info@eme4you.co.za",
+      from: `"EME Website" <${process.env.COMPANY_EMAIL}>`, // must match authenticated user
+      to: process.env.COMPANY_EMAIL || "wandile@eme4you.co.za",
       replyTo: email, // visitor's email for direct reply
       subject: `New Contact Form Message from ${name}`,
       html: `<h2>New Contact Form Submission</h2>
@@ -52,7 +52,7 @@ router.post("/contact", async (req, res) => {
 
     // 2️⃣ Confirmation email to visitor
     const visitorMailOptions = {
-      from: `"EME Website" <${process.env.SMTP_USER}>`,
+      from: `"EME Website" <${process.env.COMPANY_EMAIL}>`,
       to: email,
       subject: `We Received Your Message`,
       html: `<p>Hi ${name},</p>
