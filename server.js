@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import contactRouter from './routes/contact.js';
+
 
 dotenv.config();
 
@@ -22,6 +24,7 @@ app.set("trust proxy", 1);
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', contactRouter); // Now /api/contact works
 
 // ---------------------------
 // CORS Configuration

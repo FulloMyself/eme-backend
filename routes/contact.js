@@ -7,7 +7,7 @@ router.post("/contact", async (req, res) => {
   const { name, email, phone, service, message } = req.body;
 
   // Validate required fields
-  if (!name || !email || !service || !message) {
+  if (!name || !email || !phone || !service || !message) {
     return res.status(400).json({
       success: false,
       message: "Please fill in all required fields.",
